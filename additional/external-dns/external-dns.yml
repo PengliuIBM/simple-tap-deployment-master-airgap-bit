@@ -1,0 +1,126 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+#@ load("@ytt:base64", "base64")
+
+#! Helpers
+#@ tap = data.values.tap
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-dns
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+  namespace: external-dns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns
+  namespace: external-dns
+rules:
+  - apiGroups: ['']
+    resources: ['endpoints', 'pods', 'services']
+    verbs: ['get', 'watch', 'list']
+  - apiGroups: ['extensions']
+    resources: ['ingresses']
+    verbs: ['get', 'watch', 'list']
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get","watch","list"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns
+subjects:
+- kind: ServiceAccount
+  name: external-dns
+  namespace: external-dns
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: external-dns
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: external-dns
+  template:
+    metadata:
+      labels:
+        app: external-dns
+    spec:
+      serviceAccountName: external-dns
+      containers:
+      - name: external-dns
+        image: k8s.gcr.io/external-dns/external-dns:v0.10.2
+        args:
+        - --source=service
+        - --source=ingress
+        - #@ "--domain-filter=" + str(tap.domains.main)
+        #@ if "aws" in tap.credentials.external_dns:
+        - --provider=aws
+        - --aws-zone-type=public #! Looks only at public hosted zones. Valid values are public, private, or no value for both.
+        - --aws-prefer-cname
+        - #@ "--txt-owner-id=" + str(tap.credentials.external_dns.aws.route_fifty_three_zone_id)
+        #@ elif "google" in tap.credentials.external_dns:
+        - --provider=google
+        - --google-zone-visibility=public
+        #@ else:
+        - --provider=cloudflare
+        #@ end
+        - --policy=upsert-only
+        - --txt-prefix=txt   
+        - --registry=txt
+        #@ if "aws" in tap.credentials.external_dns or "cloudflare" in tap.credentials.external_dns:
+        env:
+         #@ if "aws" in tap.credentials.external_dns:
+         - name: AWS_ACCESS_KEY_ID
+           valueFrom:
+             secretKeyRef:
+               name: external-dns-credentials
+               key: aws_access_key_id
+         - name: AWS_SECRET_ACCESS_KEY
+           valueFrom:
+             secretKeyRef:
+               name: external-dns-credentials
+               key: aws_secret_access_key
+         #@ elif "cloudflare" in tap.credentials.external_dns:
+         - name: CF_API_TOKEN
+           valueFrom:
+             secretKeyRef:
+               name: external-dns-credentials
+               key: cf_api_token
+         #@ end
+        #@ end
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: external-dns-credentials
+  namespace: external-dns
+stringData:
+  #@ if "aws" in tap.credentials.external_dns:
+  aws_access_key_id: #@ tap.credentials.external_dns.aws.credentials.access_key
+  aws_secret_access_key: #@ tap.credentials.external_dns.aws.credentials.secret_key
+  #@ elif "cloudflare" in tap.credentials.external_dns:
+  cf_api_token: #@ tap.credentials.external_dns.cloudflare.credentials.apiToken
+  #@ elif "google" in tap.credentials.external_dns:
+  key_json: #@ tap.credentials.external_dns.google.key_json
+  #@ end

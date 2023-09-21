@@ -1,0 +1,28 @@
+#@ load("@ytt:data", "data")
+
+#! Helpers because typing is hard
+#@ domains      = data.values.tap.domains
+
+#! ---
+#! apiVersion: cert-manager.io/v1
+#! kind: Certificate
+#! metadata:
+#!   name: #@ "learning-center-{}".format(domains.contour_tls_secret)
+#!   namespace: learningcenter
+#! spec:
+#!   commonName: #@ "*.learning-center.{}".format(domains.main)
+#!   dnsNames:
+#!   - #@ "*.learning-center.{}".format(domains.main)
+#!   duration: 2160h0m0s
+#!   issuerRef:
+#!     kind: ClusterIssuer
+#!     name: letsencrypt-contour-cluster-issuer
+#!   privateKey:
+#!     algorithm: RSA
+#!     encoding: PKCS1
+#!     size: 2048
+#!   subject:
+#!     organizations:
+#!     - vmware
+#!   renewBefore: 360h0m0s
+#!   secretName: #@ "learning-center-{}".format(domains.contour_tls_secret)

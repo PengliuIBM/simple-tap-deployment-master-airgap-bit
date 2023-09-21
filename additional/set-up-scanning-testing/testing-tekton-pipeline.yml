@@ -1,0 +1,96 @@
+#@ load("@ytt:data", "data")
+
+
+#! Deploy simple Tekton pipeline into each dev namespace.
+#! Required for the testing, and testing_scanning OOTB supply chains.
+#! ref: https://docs.vmware.com/en/VMware-Tanzu-Application-Platform/1.2/tap/GUID-getting-started-add-test-and-security.html#tekton-pipeline-config-example-3
+
+#@ if data.values.tap.dev_namespaces and data.values.tap.dev_namespaces != "":
+#@ for namespace in data.values.tap.dev_namespaces:
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: developer-defined-tekton-pipeline
+  namespace: #@ namespace
+  labels:
+    apps.tanzu.vmware.com/pipeline: test     #! (!) required
+spec:
+  params:
+    - name: source-url                       #! (!) required
+    - name: source-revision                  #! (!) required
+  tasks:
+    - name: check-build-tool
+      params:
+        - name: source-url
+          value: $(params.source-url)
+        - name: source-revision
+          value: $(params.source-revision)
+      taskSpec:
+        params:
+          - name: source-url
+          - name: source-revision
+        results:
+          - name: build-tool
+            description: returns the used build-tool
+        steps:
+          - name: check-file
+            image: alpine
+            script: |
+              cd `mktemp -d`
+              wget -qO- $(params.source-url) | tar xvz -m
+
+              if test -f package.json; then
+                printf npm | tee /tekton/results/build-tool
+              else
+                printf maven | tee /tekton/results/build-tool
+              fi
+    - name: test-mvn
+      params:
+        - name: source-url
+          value: $(params.source-url)
+        - name: source-revision
+          value: $(params.source-revision)
+      when:
+      - input: "$(tasks.check-build-tool.results.build-tool)"
+        operator: in
+        values: ["maven"]
+      runAfter:
+        - check-build-tool
+      taskSpec:
+        params:
+          - name: source-url
+          - name: source-revision
+        steps:
+          - name: test
+            image: maven:3-openjdk-11
+            script: |-
+              cd `mktemp -d`
+              wget -qO- $(params.source-url) | tar xvz -m
+              mvn test
+    - name: test-npm
+      params:
+        - name: source-url
+          value: $(params.source-url)
+        - name: source-revision
+          value: $(params.source-revision)
+      when:
+      - input: "$(tasks.check-build-tool.results.build-tool)"
+        operator: in
+        values: ["npm"]
+      runAfter:
+        - check-build-tool
+      taskSpec:
+        params:
+          - name: source-url
+          - name: source-revision
+        steps:
+          - name: test
+            image: node:8
+            script: |-
+              cd `mktemp -d`
+              wget -qO- $(params.source-url) | tar xvz -m
+              npm install-test
+
+#@ end
+#@ end

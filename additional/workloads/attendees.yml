@@ -1,0 +1,19 @@
+---
+apiVersion: carto.run/v1alpha1
+kind: Workload
+metadata:
+  labels:
+    app.kubernetes.io/part-of: attendees
+    apps.tanzu.vmware.com/workload-type: web
+  name: attendees
+  namespace: dev-tap
+spec:
+  params:
+    - name: annotations
+      value:
+        autoscaling.knative.dev/minScale: "1"
+  source:
+    git:
+      ref:
+        branch: master
+      url: https://github.com/drawsmcgraw/pcf-ers-demo

@@ -1,0 +1,19 @@
+---
+apiVersion: carto.run/v1alpha1
+kind: Workload
+metadata:
+  labels:
+    app.kubernetes.io/part-of: crypto-currency-screener
+    apps.tanzu.vmware.com/workload-type: web
+  name: crypto-currenty-screener
+  namespace: dev-tap
+spec:
+  params:
+    - name: annotations
+      value:
+        autoscaling.knative.dev/minScale: "1"
+  source:
+    git:
+      ref:
+        branch: main
+      url: https://github.com/drawsmcgraw/CryptoCurrency-Screener

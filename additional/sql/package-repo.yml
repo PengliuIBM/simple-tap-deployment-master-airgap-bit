@@ -1,0 +1,13 @@
+#@ load("@ytt:data", "data")
+#@ tap = data.values.tap
+#@ registry = tap.credentials.registry
+
+apiVersion: packaging.carvel.dev/v1alpha1
+kind: PackageRepository
+metadata:
+  name: tds-repo
+  namespace: tap-install
+spec:
+  fetch:
+    imgpkgBundle:
+      image: #@ "{}/{}:{}".format(registry.host, registry.tds_repo, tap.tds_version)

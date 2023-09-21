@@ -1,0 +1,11 @@
+---
+apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+kind: ClusterInstanceClass
+metadata:
+  name: tanzu-psql
+spec:
+  description:
+    short: VMware Tanzu Postgres
+  provisioner:
+    crossplane:
+      compositeResourceDefinition: xpostgresqlinstances.database.tanzu.example.org

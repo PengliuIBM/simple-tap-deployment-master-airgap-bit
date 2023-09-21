@@ -1,0 +1,14 @@
+#@data/values
+---
+namespaces:
+#! The only required parameter is the name of the namespace. All additional values provided here 
+#! for a namespace will be available under data.values for templating additional sources
+- name: dev-tap
+#!- name: user-01
+#!- name: user-02
+#!- name: user-03
+#!- name: user-04
+#!- name: user-05
+#!- name: user-06
+#!- name: user-07
+#!- name: user-08

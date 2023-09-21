@@ -1,0 +1,10 @@
+apiVersion: accelerator.apps.tanzu.vmware.com/v1alpha1
+kind: Accelerator
+metadata:
+  name: node-uber
+  namespace: accelerator-system
+spec:
+  git:
+    url: https://gitlab.com/tanzu-ns/node-uber
+    ref:
+      branch: main

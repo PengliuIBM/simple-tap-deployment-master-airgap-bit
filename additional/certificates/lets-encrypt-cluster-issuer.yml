@@ -1,0 +1,76 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:base64", "base64")
+
+#!
+#! NOTE: Only works with Google at the moment.
+#!
+
+#! Helpers
+#@ tap = data.values.tap
+#@ external_dns = tap.credentials.external_dns
+
+#! ---
+#! apiVersion: v1
+#! data:
+#!   key-json: #@ google.key_json
+#! kind: Secret
+#! metadata:
+#!   name: clouddns-dns01-solver-svc-acct
+#!   namespace: cert-manager
+---
+#!
+#! This will need some work for other DNS providers like Route53 and CloudFlare
+#! See here for an example: https://github.com/tsalm-pivotal/tap-install/blob/master/ingress-config/lets-encrypt-issuer/lets-encrypt-cluster-issuer.yaml
+#!
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-contour-cluster-issuer
+spec:
+  acme:
+    email: #@ data.values.tap.credentials.email
+    privateKeySecretRef:
+      name: acme-account-key
+    server: https://acme-v02.api.letsencrypt.org/directory
+    solvers:
+      - dns01:
+              #@ if "google" in external_dns:
+              cloudDNS:
+                project: #@ external_dns.google.project
+                serviceAccountSecretRef:
+                  name: external-dns-credentials
+                  key: key-json
+              #@ end
+
+              #@ if "aws" in external_dns:
+              route53:
+                region: #@ external_dns.aws.region
+                hostedZoneID: #@ external_dns.aws.route_fifty_three_zone_id
+                accessKeyID: #@ external_dns.aws.credentials.access_key
+                secretAccessKeySecretRef:
+                  name: route53-credentials-secret
+                  key: secret-access-key
+              #@ end
+
+
+#! Need to create the secret if we're using AWS
+#@ if "aws" in external_dns:
+---
+apiVersion: v1
+data:
+  secret-access-key: #@ base64.encode(external_dns.aws.credentials.secret_key)
+kind: Secret
+metadata:
+  creationTimestamp: null
+  name: route53-credentials-secret
+  namespace: cert-manager
+#@ elif "google" in external_dns:
+---
+apiVersion: v1
+data:
+  key-json: #@ base64.encode(external_dns.google.key_json)
+kind: Secret
+metadata:
+  name: external-dns-credentials
+  namespace: cert-manager
+#@ end

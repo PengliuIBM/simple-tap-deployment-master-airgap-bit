@@ -1,0 +1,17 @@
+#@ load("@ytt:data", "data")
+#@ registry = data.values.tap.credentials.registry
+#@ tas_adapter = data.values.tas_adapter
+---
+
+apiVersion: packaging.carvel.dev/v1alpha1
+kind: PackageRepository
+metadata:
+  name: #@ "tanzu-tas-adapter-repository"
+  namespace: #@ data.values.tap.namespace
+spec:
+  fetch:
+    imgpkgBundle:
+             #! for example, harbor.acme.com/tanzu-app-platform/tas-adapter-packages:1.3.build.3
+      image: #@ "{}/{}:{}".format(registry.host, tas_adapter.repo, tas_adapter.version)
+      secretRef:
+        name: tap-registry

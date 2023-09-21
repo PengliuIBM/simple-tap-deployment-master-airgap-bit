@@ -1,0 +1,10 @@
+---
+tas_adapter:
+  version: 1.3.0
+  admin_users:
+    - user@example.com
+  #! The path in your containter registry to install TAS adapter from
+  repo: mosher-workspace/tap/tas-adapter-1.3.0
+  #! The final part of "REPOSITORY-PREFIX" in this section of the docs: https://docs.vmware.com/en/Application-Service-Adapter-for-VMware-Tanzu-Application-Platform/1.1/tas-adapter/install.html#configure-the-installation-settings
+  #! The rest is constructed for you from TAP Values
+  app_repo_prefix: mosher-workspace/tap/tas-adapter

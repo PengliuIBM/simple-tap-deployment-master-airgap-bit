@@ -1,0 +1,115 @@
+---
+tap:
+  version: "1.6.2"
+  namespace: tap-install
+
+  #! true if using full TBS deps, false if using lite TBS deps. Do NOT use quotes
+  exclude_dependencies: true
+
+  #! Uncomment these if using "full" TBS deps.
+  #! See the docs: https://docs.vmware.com/en/VMware-Tanzu-Application-Platform/1.6/tap/install-online-profile.html#install-the-full-dependencies-package-6
+  tbs_deps_version: "1.6.1"
+
+  #! TDS package version, different from the version of Postgres or MySQL
+  #! See here for the version table for Postgres: https://docs.vmware.com/en/VMware-SQL-with-Postgres-for-Kubernetes/2.0/vmware-postgres-k8s/GUID-release-notes.html#1_9_0_tds_packages
+  tds_version: 1.7.1
+
+  #! To find the versions available in your install, run:
+  #! tanzu package available list mysql-operator.with.sql.tanzu.vmware.com -n tap-install
+  #!tds_mysql_operator_version: 
+  #!tds_postgres_operator_version: 
+
+  #! The value to pass to the OOTB supply chains - base (default), full, tiny
+  cluster_builder: "base"
+
+  #! Namespace for shared services like AppSSO, DBs, etc
+  services_namespace: service-instances
+
+  supply_chain: testing_scanning
+
+  excluded_packages:
+    - learningcenter.tanzu.vmware.com
+    - workshops.learningcenter.tanzu.vmware.com
+    - policy.apps.tanzu.vmware.com  #! See here: https://docs.vmware.com/en/VMware-Tanzu-Application-Platform/1.3/tap/GUID-scst-policy-known-issues.html
+    - eventing.tanzu.vmware.com
+  
+  #! Replace with the URL to your listing.json for an airgapped Grype install
+  #!grype:
+  #!  db:
+  #!    dbUpdateUrl: 
+
+  #! Uncomment to set catalogs.
+  #! Set Backstage catalogs to include by default.
+  #!catalogs:
+  #!- https://gitlab.com/drawsmcgraw/hello-tap/-/blob/master/catalog-info.yaml
+  #!- https://github.com/drawsmcgraw/pcf-ers-demo/blob/master/catalog-info.yaml
+  #!- https://github.com/drawsmcgraw/python-test/blob/main/catalog/catalog-info.yaml
+  #!- https://github.com/backstage/backstage/blob/master/packages/catalog-model/examples/all.yaml
+  #!- https://github.com/gm2552/hungryman/blob/main/catalog/catalog-info.yaml
+
+  domains:
+    main:            tap.tacticalprogramming.com
+    tapGui:          tap-gui.tap.tacticalprogramming.com
+    knative:         cnr.tap.tacticalprogramming.com
+    contour_tls_namespace: tanzu-system-ingress
+    contour_tls_secret: contour-tls
+
+  #! Name of k8s namespaces to set up for development.
+  #! ref: https://docs.vmware.com/en/VMware-Tanzu-Application-Platform/1.4/tap/namespace-provisioner-about.html#namespace-provisioner-controller-3
+  #! Note that you can add additional parameters here, such as language or other custom namespace config, see the docs.
+  dev_namespaces: 
+    - name: dev-tap
+    #!- name: where-for-dinner
+    #!- name: user-01
+    #!- name: user-02
+    #!- name: user-03
+    #!- name: user-04
+    #!- name: user-05
+    #!- name: user-06
+    #!- name: user-07
+    #!- name: user-08
+
+  accelerator:
+  #! Set to false if you do not want the samples to display for demo purposes
+    include_samples: true
+  #! Set to true if you want to include our custom demo-focused accelerators
+    include_managed_resources: true
+    managed_resources:
+      git_url: https://gitlab.com/tanzu-ns/simple-tap-deployment
+      ref: origin/master
+      sub_path: additional/custom-accelerators
+      secret_ref: "" #! This needs to be expressly defined, even if none
+
+  namespace_provisioner:  
+    controller: false
+    #! This maps directly to the "additional_sources" for the Namespace Provisioner
+    #! Ref: https://docs.vmware.com/en/VMware-Tanzu-Application-Platform/1.4/tap/namespace-provisioner-how-tos.html#extending-the-default-provisioned-resources-2
+    additional_sources:
+    - git:
+        ref: origin/master
+        subPath: ns-provisioner-files/testing-scanning-supplychain
+        #! TODO: move this to this repo, so we can change it when needed
+        url: https://gitlab.com/tanzu-ns/simple-tap-deployment.git
+      path: _ytt_lib/testingscanning   #! this user-generated path must always begin with "_ytt_lib/"
+
+    gitops_install:
+      ref: origin/master
+      subPath: ns-provisioner-files/gitops-install
+      url: https://gitlab.com/tanzu-ns/simple-tap-deployment.git
+
+    #! Apply Grype overlay for each installation in all the managed namespaces
+    overlay_secrets:
+    - name: grype-airgap-overlay
+      namespace: tap-install
+      create_export: true
+
+
+#! uncomment to customize tap-gui.
+#!tap_gui:
+#!    customize:
+#!      custom_logo: ""
+#!      custom_name: ''
+#!      banners:
+#!        text: ''
+#!        color: '#ffffff'
+#!        bg: '#006600'

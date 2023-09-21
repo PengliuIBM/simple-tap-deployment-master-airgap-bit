@@ -1,0 +1,217 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+
+#! Helpers because typing is hard
+#! You can always access the raw data with 'data.values...'
+#@ tap      = data.values.tap
+#@ creds    = tap.credentials
+#@ registry = tap.credentials.registry
+
+#!
+#! This file is your 'tap-values.yaml'
+#!
+---
+#!!!#@ def config():
+
+#! Shared section. Values made available to all components.
+shared:
+#! ca_cert_data:
+#! image_regsitry:
+#!  project_path: tap
+#!  username: user
+#!  password: password1234
+  ingress_domain: #@ tap.domains.main
+
+profile: full
+#@ if/end tap.exclude_dependencies:
+excluded_packages: #@ tap.excluded_packages
+ceip_policy_disclosed: true
+buildservice:
+  kp_default_repository: #@ "{}/{}".format(registry.host, registry.repositories.build_service)
+  kp_default_repository_username: #@ registry.username
+  kp_default_repository_password: #@ registry.password
+  #@ if tap.exclude_dependencies:
+  exclude_dependencies: #@ tap.exclude_dependencies 
+  #@ end 
+
+  #! The below is only necessary if you want to enable automatic dependency updates for TBS.
+  #!!!tanzunet_username: #@ creds.tanzunet.username
+  #!!!tanzunet_password: #@ creds.tanzunet.password
+  #!!!descriptor_name: "full"
+  #!!!enable_automatic_dependency_updates: true
+
+#! valid options are 'basic', 'testing', and 'testing_scanning'
+supply_chain: #@ tap.supply_chain
+ootb_supply_chain_basic:
+  cluster_builder: #@ tap.cluster_builder
+  registry:
+    server: #@ registry.host
+    repository: #@ registry.repositories.ootb_supply_chain
+  gitops:
+    ssh_secret: ""
+  #@ if tap.credentials.maven:
+  maven:
+    repository:
+      url: #@ tap.credentials.maven.url
+      secret_name: #@ tap.credentials.maven.secret_name
+  #@ end
+
+ootb_supply_chain_testing:
+  cluster_builder: #@ tap.cluster_builder
+  registry:
+    server: #@ registry.host
+    repository: #@ registry.repositories.ootb_supply_chain
+  gitops:
+    ssh_secret: ""
+  #@ if tap.credentials.maven:
+  maven:
+    repository:
+      url: #@ tap.credentials.maven.url
+      secret_name: #@ tap.credentials.maven.secret_name
+  #@ end
+
+ootb_supply_chain_testing_scanning:
+  cluster_builder: #@ tap.cluster_builder
+  registry:
+    server: #@ registry.host
+    repository: #@ registry.repositories.ootb_supply_chain
+  gitops:
+    ssh_secret: ""
+  #@ if tap.credentials.maven:
+  maven:
+    repository:
+      url: #@ tap.credentials.maven.url
+      secret_name: #@ tap.credentials.maven.secret_name
+  #@ end
+
+tap_gui:
+  service_type: ClusterIP
+  ingressEnabled: "true"
+  ingressDomain: #@ tap.domains.main
+  tls:
+    secretName: #@ tap.domains.contour_tls_secret
+    namespace: #@ tap.domains.contour_tls_namespace
+  app_config: 
+    #@ if "tap.tap_gui" in tap and "tap.tap_gui.customize" in tap.tap_gui:
+    customize: #@ tap.tap_gui.customize
+    #@ end
+
+    #@ if "metadata_svc_account_token" in creds:
+    #! Set security metadata access for TAP GUI.
+    #! ref: https://docs.vmware.com/en/VMware-Tanzu-Application-Platform/1.2/tap/GUID-tap-gui-plugins-scc-tap-gui.html#enable-cve-scan-results-2
+    proxy:
+      /metadata-store:
+        target: https://metadata-store-app.metadata-store:8443/api/v1
+        changeOrigin: true
+        secure: false
+        headers:
+          Authorization: #@ "Bearer {}".format(creds.metadata_svc_account_token)
+          X-Custom-Source: project-star
+    #@ end
+
+    app:
+      baseUrl: #@ "https://{}".format(tap.domains.tapGui)
+    integrations:
+      #@ if "github" in creds and "token" in creds.github:
+      github:
+      - host: github.com
+        token: #@ creds.github.token
+      #@ end
+      #@ if "gitlab" in creds and "clientId" in creds.gitlab and "clientSecret" in creds.gitlab:
+      gitlab:
+        - host: gitlab.com
+      #@ end
+    catalog:
+      locations:
+      #@ if "catalogs" in tap:
+      #@ for catalog in tap.catalogs:
+      - type: url
+        target: #@ catalog
+      #@ end
+      #@ end
+    backend:
+      baseUrl: #@ "https://{}".format(tap.domains.tapGui)
+      cors:
+        origin: #@ "https://{}".format(tap.domains.tapGui)
+      #@ if "backstage" in creds and "database" in creds.backstage:
+      backend:
+        database:
+          client: #@ creds.backstage.database.client
+          connection:
+            host: #@ creds.backstage.database.host
+            port: #@ creds.backstage.database.port
+            user: #@ creds.backstage.database.username
+            password: #@ creds.backstage.database.password
+            ssl: {rejectUnauthorized: true}
+      #@ end
+    #@ if "okta" in creds and "clientId" in creds.okta and "clientSecret" in creds.okta:
+    auth:
+      allowGuestAccess: true
+      environment: development
+      providers:
+        okta:
+          development:
+            clientId:     #@ creds.okta.clientId
+            clientSecret: #@ creds.okta.clientSecret
+            audience:     #@ creds.okta.audience
+    #@ end
+    #@ if "gitlab" in creds and "clientId" in creds.gitlab and "clientSecret" in creds.gitlab:
+    auth:
+      allowGuestAccess: true
+      environment: development
+      providers:
+        gitlab:
+          development:
+            clientId:      #@ creds.gitlab.clientId
+            clientSecret:  #@ creds.gitlab.clientSecret
+          #!! uncomment if using self-hosted GitLab
+          #! audience: https://gitlab.company.com
+          #!! uncomment if using a custom redirect URI
+          #! callbackUrl: https://${BASE_URL}/api/auth/gitlab/handler/frame
+    #@ end
+
+metadata_store:
+  ns_for_export_app_cert: "*"
+  app_service_type: LoadBalancer
+
+
+accelerator:
+  ingress:
+    include: true
+  domain: #@ tap.domains.main
+  samples:
+    include: #@ tap.accelerator.include_samples
+  managed_resources:
+    enable: #@ tap.accelerator.include_managed_resources 
+    #@ if tap.accelerator.include_managed_resources:
+    git: 
+      url: #@ tap.accelerator.managed_resources.git_url
+      ref: #@ tap.accelerator.managed_resources.ref
+      sub_path: #@ tap.accelerator.managed_resources.sub_path
+      secret_ref: #@ tap.accelerator.managed_resources.secret_ref
+    #@ end  
+
+#@ if "tap.grype" in tap:
+grype: #@ tap.grype
+#@ end
+
+contour:
+  envoy:
+    service:
+      type: LoadBalancer
+      annotations:
+        external-dns.alpha.kubernetes.io/hostname: #@ "*.{}".format(tap.domains.main)
+
+cnrs:
+  domain_name: #@ tap.domains.knative
+  default_tls_secret: #@ "{}/{}".format(tap.domains.contour_tls_namespace, tap.domains.contour_tls_secret)
+  domain_template: "{{.Name}}-{{.Namespace}}.{{.Domain}}"
+  ingress_issuer: ""
+
+namespace_provisioner: #@ tap.namespace_provisioner
+  #! Add templated java scan policy and tekton pipeline
+
+#!package_overlays:
+#! - name: "grype"
+#!   secrets:
+#!       - name: "grype-airgap-overlay"

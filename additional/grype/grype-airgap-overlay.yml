@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grype-airgap-overlay
+  namespace: tap-install #! namespace where tap is installed
+stringData:
+  patch.yaml: |
+    #@ load("@ytt:overlay", "overlay")
+
+    #@overlay/match by=overlay.subset({"kind":"ScanTemplate"}),expects="1+"
+    ---
+    spec:
+      template:
+        initContainers:
+          #@overlay/match by=overlay.subset({"name": "scan-plugin"}), expects="1+"
+          - name: scan-plugin
+            #@overlay/match missing_ok=True
+            env:
+              #@overlay/append
+              - name: GRYPE_DB_MAX_ALLOWED_BUILT_AGE #! see note on best practices
+                value: "2160h" #! 90 days
+              - name: GRYPE_CHECK_FOR_APP_UPDATE     #! disable check for latest CLI (since there's no Internet)
+                value: "false"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grype-airgap-override-stale-db-overlay-for-nsp
+  namespace: tap-install 
+stringData:
+  patch-grype-install-in-nsp.yaml: |
+    #@ load("@ytt:overlay", "overlay")
+    #@ def matchGrypeScanners(index, left, right):
+    #@   if left["apiVersion"] != "packaging.carvel.dev/v1alpha1" or left["kind"] != "PackageInstall":
+    #@     return False
+    #@   end      
+    #@   return left["metadata"]["name"].startswith("grype-scanner")
+    #@ end
+    #@overlay/match by=matchGrypeScanners, expects="0+"
+    ---
+    metadata:
+      annotations:
+        #@overlay/match missing_ok=True
+        ext.packaging.carvel.dev/ytt-paths-from-secret-name.0: grype-airgap-overlay
+        #! The value of the above annotation is the name of the secret that contains the grype overlay

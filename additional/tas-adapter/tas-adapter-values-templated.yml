@@ -1,0 +1,32 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+
+#! Helpers because typing is hard
+#@ tap      = data.values.tap
+#@ creds    = tap.credentials
+#@ registry = tap.credentials.registry
+#@ tas_adapter = data.values.tas_adapter
+
+#!
+#! This file is your 'tas-adapter-values.yaml'
+#!
+
+admin:
+  users: #@ tas_adapter.admin_users
+ceip_policy_disclosed: true #! Installation fails if this is not set to the boolean value true. Not a string.
+api_ingress:
+  fqdn: #@ "cf-api.{}".format(tap.domains.main)
+  tls:
+    secret_name: #@ tap.domains.contour_tls_secret
+    namespace: #@ tap.domains.contour_tls_namespace
+app_ingress:
+  default_domain: #@ "cf-apps.{}".format(tap.domains.main)
+  tls:
+    secret_name: #@ tap.domains.contour_tls_secret
+    namespace: #@ tap.domains.contour_tls_namespace
+app_registry:
+  credentials:
+    secret_name: "tap-registry"
+    namespace: #@ tap.namespace
+    #! aws_iam_role_arn: "AWS-IAM-ROLE-ARN"
+  repository_prefix: #@ "{}/{}/{}".format(registry.host, registry.repo, tas_adapter.app_repo_prefix)

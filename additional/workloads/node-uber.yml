@@ -1,0 +1,26 @@
+apiVersion: carto.run/v1alpha1
+kind: Workload
+metadata:
+  labels:
+    app.kubernetes.io/part-of: node-uber
+    apps.tanzu.vmware.com/has-tests: "true"
+    apps.tanzu.vmware.com/workload-type: web
+  name: node-uber
+  namespace: dev-tap
+spec:
+  params:
+  - name: annotations
+    value:
+      autoscaling.knative.dev/minScale: "1"
+  serviceClaims:
+  - name: psql
+    ref:
+      apiVersion: services.apps.tanzu.vmware.com/v1alpha1
+      kind: ClassClaim
+      name: node-uber
+  source:
+    git:
+      ref:
+        branch: main
+      url: https://gitlab.com/tanzu-ns/node-uber.git
+

@@ -1,0 +1,45 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:base64", "base64")
+#@ load("@ytt:json", "json")
+#@ load("@ytt:yaml", "yaml")
+
+#!
+#! Create, and set up, developer k8s namespaces.
+#! ref: https://docs.vmware.com/en/VMware-Tanzu-Application-Platform/1.4/tap/namespace-provisioner-how-tos.html#add-test-scan
+#!
+
+#! Helpers
+#@ tap = data.values.tap
+#@ dev_namespaces = data.values.tap.dev_namespaces
+
+---
+#@ def config():
+#@  return {
+#@    "auths": {
+#@      data.values.tap.credentials.registry.host: {
+#@        "username": tap.credentials.registry.username,
+#@        "password": tap.credentials.registry.password
+#@      }
+#@    }
+#@  }
+#@ end
+
+#@ def namespaces():
+namespaces: #@ dev_namespaces
+#@ end
+
+#@ if tap.dev_namespaces and tap.dev_namespaces != "":
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: desired-namespaces
+  namespace: tap-namespace-provisioning
+  annotations:
+    kapp.k14s.io/create-strategy: fallback-on-update
+    namespace-provisioner.apps.tanzu.vmware.com/no-overwrite: "" #! This annotation tells the provisioner app to not override this configMap as this is your desired state.
+data:
+  namespaces.yaml: #@ "#@data/values\n---\n" + yaml.encode(namespaces())
+
+#! end if data.values.tap.devNamespaces...
+#@ end

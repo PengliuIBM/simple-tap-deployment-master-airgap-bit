@@ -1,0 +1,29 @@
+#@ load("@ytt:data", "data")
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tap-default-sa
+  namespace: #@ data.values.tap.namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tap-default-role
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tap-default-role-binding
+subjects:
+- kind: ServiceAccount
+  name: tap-default-sa
+  namespace: #@ data.values.tap.namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tap-default-role

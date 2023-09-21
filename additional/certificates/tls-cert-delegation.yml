@@ -1,0 +1,21 @@
+#@ load("@ytt:data", "data")
+
+#! Helpers because typing is hard
+#@ domains      = data.values.tap.domains
+---
+apiVersion: projectcontour.io/v1
+kind: TLSCertificateDelegation
+metadata:
+  name: contour-delegation
+  namespace: #@ domains.contour_tls_namespace
+spec:
+  delegations:
+    - secretName: #@ domains.contour_tls_secret
+      targetNamespaces:
+        - "*"
+    - secretName: #@ "cnr-{}".format(domains.contour_tls_secret)
+      targetNamespaces:
+        - "*"
+    - secretName: #@ "learning-center-{}".format(domains.contour_tls_secret)
+      targetNamespaces:
+        - "*"
